@@ -124,6 +124,22 @@ public class BitpinRestClient
         using var response = await _httpClient.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
         return await HandleResponse<TResponse>(response, cancellationToken);
     }
+    
+    /// <summary>
+    /// Sends a DELETE request to the specified endpoint and returns the response.
+    /// </summary>
+    public async Task DeleteAsync(string endpoint, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+            throw new ArgumentException("Endpoint must not be null or empty.", nameof(endpoint));
+
+        var token = await TokenHandler();
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+        httpRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+
+        await _httpClient.SendAsync(httpRequest, cancellationToken).ConfigureAwait(false);
+    }
 
     private static async Task<TResponse?> HandleResponse<TResponse>(HttpResponseMessage response, CancellationToken cancellationToken)
     {
