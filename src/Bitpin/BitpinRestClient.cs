@@ -10,8 +10,10 @@ public class BitpinRestClient
     private readonly HttpClient _httpClient = new();
     private string? _accessToken = String.Empty;
     private string? _refreshToken = String.Empty;
-    private DateTime _expirationTime;
+    private DateTime _accessTokenExpirationTime;
+    private DateTime _refreshTokenExpirationTime;
     private const int TokenExpiryInMinutes = 13;
+    private const int RefreshTokenExpiryInDays = 29;
     
     public BitpinRestClient(BitpinClientSettings settings)
     {
@@ -49,27 +51,40 @@ public class BitpinRestClient
         return result;
     }
 
-    public async Task<string> TokenHandler()
+    private async Task<string> TokenHandler()
     {
-        if (String.IsNullOrEmpty(_accessToken))
+        var now = DateTime.UtcNow;
+
+        bool isAccessTokenMissing = string.IsNullOrEmpty(_accessToken);
+        bool isAccessTokenExpired = _accessTokenExpirationTime.AddMinutes(TokenExpiryInMinutes) < now;
+        bool isRefreshTokenExpired = _refreshTokenExpirationTime.AddDays(RefreshTokenExpiryInDays) < now;
+
+        if (isAccessTokenMissing)
         {
-            var tokens=await GetTokenAsync();
+            await RetrieveAndStoreNewTokenAsync();
+        }
+        else if (!string.IsNullOrEmpty(_refreshToken) && isAccessTokenExpired && !isRefreshTokenExpired)
+        {
+            var tokens = await RefreshTokenAsync();
             _accessToken = tokens.AccessToken;
-            _refreshToken = tokens.RefreshToken;
+        }
+        else if (!isRefreshTokenExpired)
+        {
+            await RetrieveAndStoreNewTokenAsync();
         }
 
-        if (!String.IsNullOrEmpty(_accessToken) &&
-            !String.IsNullOrEmpty(_refreshToken) &&
-            _expirationTime.AddMinutes(TokenExpiryInMinutes) < DateTime.UtcNow)
-        {
-            var tokens=await RefreshTokenAsync();
-            _accessToken = tokens.AccessToken;
-        }
-
-        _expirationTime= DateTime.UtcNow.AddMinutes(TokenExpiryInMinutes);
-        
+        _accessTokenExpirationTime = now.AddMinutes(TokenExpiryInMinutes);
         return _accessToken;
     }
+
+    private async Task RetrieveAndStoreNewTokenAsync()
+    {
+        var tokens = await GetTokenAsync();
+        _accessToken = tokens.AccessToken;
+        _refreshToken = tokens.RefreshToken;
+        _refreshTokenExpirationTime = DateTime.UtcNow.AddDays(RefreshTokenExpiryInDays);
+    }
+
 
     /// <summary>
     /// Sends a POST request to the specified endpoint with the given request payload and returns the response.
