@@ -1,5 +1,3 @@
-
-
 using Bitpin.Requests;
 using Bitpin.Responses;
 
@@ -35,7 +33,7 @@ public class BitpinClientService(BitpinRestClient client)
         => await client.GetAsync<GetOrderByIdResponse>($"odr/orders/{orderId}/");
     
     public async Task<IEnumerable<GetOrderLisrResponse?>> GetOrderListAsync()
-        => await client.GetAsync<IEnumerable<GetOrderLisrResponse>>($"odr/orders/");
+        => await client.GetAsync<IEnumerable<GetOrderLisrResponse>>($"odr/orders/") ?? Array.Empty<GetOrderLisrResponse>();
     
     public async Task CancelOrderAsync(int orderId)
         => await client.DeleteAsync($"odr/orders/{orderId}/");
